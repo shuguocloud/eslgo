@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2020 Percipia
+ * Copyright (c) 2020 Opensmarty
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  * Contributor(s):
- * Andrew Querol <aquerol@percipia.com>
+ * Opensmarty  <opensmarty@163.com>
  */
 package main
 
@@ -14,14 +14,15 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/percipia/eslgo"
 	"os"
 	"time"
+
+	"github.com/shuguocloud/eslgo"
 )
 
 func main() {
 	// Connect to FreeSWITCH
-	conn, err := eslgo.Dial("127.0.0.1:8021", "ClueCon", func() {
+	conn, err := eslgo.Dial("127.0.0.1:8021", "sg1000T", func() {
 		fmt.Println("Inbound Connection Disconnected")
 	})
 	if err != nil {

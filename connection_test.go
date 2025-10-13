@@ -1,24 +1,25 @@
 /*
- * Copyright (c) 2020 Percipia
+ * Copyright (c) 2020 Opensmarty
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  * Contributor(s):
- * Andrew Querol <aquerol@percipia.com>
+ * Opensmarty  <opensmarty@163.com>
  */
 package eslgo
 
 import (
-	"bufio"
-	"context"
-	"github.com/percipia/eslgo/command"
-	"github.com/stretchr/testify/assert"
-	"net"
-	"sync"
-	"testing"
-	"time"
+    "bufio"
+    "context"
+    "net"
+    "sync"
+    "testing"
+    "time"
+
+    "github.com/shuguocloud/eslgo/command"
+    "github.com/stretchr/testify/assert"
 )
 
 func TestConn_SendCommand(t *testing.T) {

@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2020 Percipia
+ * Copyright (c) 2020 Opensmarty
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  *
  * Contributor(s):
- * Andrew Querol <aquerol@percipia.com>
+ * Opensmarty  <opensmarty@163.com>
  */
 package eslgo
 
@@ -16,8 +16,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/percipia/eslgo/command"
-	"github.com/percipia/eslgo/command/call"
+	"github.com/shuguocloud/eslgo/command"
+	"github.com/shuguocloud/eslgo/command/call"
 )
 
 // Leg This struct is used to specify the individual legs of a call for the originate helpers
