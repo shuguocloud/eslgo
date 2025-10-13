@@ -8,7 +8,7 @@ eslgo was written from the ground up in idiomatic Go for use in our production p
 go get github.com/shuguocloud/eslgo
 ```
 ```
-github.com/shuguocloud/eslgo v1.4.1
+github.com/shuguocloud/eslgo v1.4.7
 ```
 
 ## Overview
