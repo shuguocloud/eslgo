@@ -22,15 +22,19 @@ import (
 	"github.com/shuguocloud/eslgo/command/call"
 )
 
-func (c *Conn) EnableEvents(ctx context.Context) error {
+func (c *Conn) EnableEvents(ctx context.Context, format ...string) error {
 	var err error
+	eventFormat := "plain" // default to plain text
+	if len(format) > 0 && format[0] != "" {
+		eventFormat = format[0]
+	}
 	if c.outbound {
 		_, err = c.SendCommand(ctx, command.MyEvents{
-			Format: "plain",
+			Format: eventFormat,
 		})
 	} else {
 		_, err = c.SendCommand(ctx, command.Event{
-			Format: "plain",
+			Format: eventFormat,
 			Listen: []string{"all"},
 		})
 	}

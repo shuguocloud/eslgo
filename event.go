@@ -63,6 +63,7 @@ func readPlainEvent(body []byte) (*Event, error) {
 func readXMLEvent(body []byte) (*Event, error) {
 	return &Event{
 		Headers: make(textproto.MIMEHeader),
+		Body:    body,
 	}, nil
 }
 
@@ -70,6 +71,7 @@ func readXMLEvent(body []byte) (*Event, error) {
 func readJSONEvent(body []byte) (*Event, error) {
 	return &Event{
 		Headers: make(textproto.MIMEHeader),
+		Body:    body,
 	}, nil
 }
 
