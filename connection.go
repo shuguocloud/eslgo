@@ -154,14 +154,14 @@ func (c *Conn) SendCommand(ctx context.Context, cmd command.Command) (*RawRespon
 	c.responseChanMutex.RLock()
 	defer c.responseChanMutex.RUnlock()
 	select {
-	case response := <-c.responseChannels[TypeReply]:
-		if response == nil {
+	case response, ok := <-c.responseChannels[TypeReply]:
+		if !ok || response == nil {
 			// We only get nil here if the channel is closed
 			return nil, errors.New("connection closed")
 		}
 		return response, nil
-	case response := <-c.responseChannels[TypeAPIResponse]:
-		if response == nil {
+	case response, ok := <-c.responseChannels[TypeAPIResponse]:
+		if !ok || response == nil {
 			// We only get nil here if the channel is closed
 			return nil, errors.New("connection closed")
 		}
