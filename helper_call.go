@@ -163,12 +163,12 @@ func (c *Conn) ExportCall(ctx context.Context, uuid, key, value string) error {
 }
 
 // ExecuteCall - A helper to execute a call synchronously
-func (c *Conn) ExecuteCall(ctx context.Context, uuid, command, cmdArgs string) error {
+func (c *Conn) ExecuteCall(ctx context.Context, uuid, appName, appArgs string, sync bool) error {
 	_, err := c.SendCommand(ctx, &call.Execute{
 		UUID:    uuid,
-		AppName: command,
-		AppArgs: cmdArgs,
-		Sync:    true,
+		AppName: appName,
+		AppArgs: appArgs,
+		Sync:    sync,
 	})
 	return err
 }
