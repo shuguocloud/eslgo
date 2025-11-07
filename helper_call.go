@@ -119,11 +119,55 @@ func (c *Conn) HangupCall(ctx context.Context, uuid, cause string) error {
 	return err
 }
 
-// HangupCall - A helper to answer a call synchronously
+// AnswerCall - A helper to answer a call synchronously
 func (c *Conn) AnswerCall(ctx context.Context, uuid string) error {
 	_, err := c.SendCommand(ctx, &call.Execute{
 		UUID:    uuid,
 		AppName: "answer",
+		Sync:    true,
+	})
+	return err
+}
+
+// ConferenceCall - A helper to conference a call synchronously
+func (c *Conn) ConferenceCall(ctx context.Context, uuid, AppArgs string) error {
+	_, err := c.SendCommand(ctx, &call.Execute{
+		UUID:    uuid,
+		AppName: "conference",
+		AppArgs: AppArgs,
+		Sync:    true,
+	})
+	return err
+}
+
+// SetCall - A helper to Set a call synchronously
+func (c *Conn) SetCall(ctx context.Context, uuid, key, value string) error {
+	_, err := c.SendCommand(ctx, &call.Set{
+		UUID:  uuid,
+		Key:   key,
+		Value: value,
+		Sync:  true,
+	})
+	return err
+}
+
+// ExportCall - A helper to export a call synchronously
+func (c *Conn) ExportCall(ctx context.Context, uuid, key, value string) error {
+	_, err := c.SendCommand(ctx, &call.Export{
+		UUID:  uuid,
+		Key:   key,
+		Value: value,
+		Sync:  true,
+	})
+	return err
+}
+
+// ExecuteCall - A helper to execute a call synchronously
+func (c *Conn) ExecuteCall(ctx context.Context, uuid, command, cmdArgs string) error {
+	_, err := c.SendCommand(ctx, &call.Execute{
+		UUID:    uuid,
+		AppName: command,
+		AppArgs: cmdArgs,
 		Sync:    true,
 	})
 	return err
