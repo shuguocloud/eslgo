@@ -78,6 +78,49 @@ func (c *Conn) Speak(ctx context.Context, uuid, audioArgs string, times int, wai
 	return c.audioCommand(ctx, "speak", uuid, audioArgs, times, wait)
 }
 
+// Execute - Executes the mod_dptools app
+func (c *Conn) Execute(ctx context.Context, uuid, command, appArgs string, wait bool) (*RawResponse, error) {
+	response, err := c.SendCommand(ctx, &call.Execute{
+		UUID:    uuid,
+		AppName: command,
+		AppArgs: appArgs,
+		Sync:    wait,
+	})
+	if err != nil {
+		return response, err
+	}
+	if !response.IsOk() {
+		return response, errors.New(command + " response is not okay")
+	}
+	return response, nil
+}
+
+// Hangup - Executes the mod_dptools hangup app
+func (c *Conn) Hangup(ctx context.Context, uuid, cause string, wait bool) (*RawResponse, error) {
+	response, err := c.SendCommand(ctx, call.Hangup{
+		UUID:  uuid,
+		Cause: cause,
+		Sync:  wait,
+	})
+	if err != nil {
+		return response, err
+	}
+	if !response.IsOk() {
+		return response, errors.New("set response is not okay")
+	}
+	return response, nil
+}
+
+// Answer - Executes the mod_dptools answer app
+func (c *Conn) Answer(ctx context.Context, uuid, audioArgs string, wait bool) (*RawResponse, error) {
+	return c.executeCommand(ctx, "answer", uuid, audioArgs, wait)
+}
+
+// Conference - Executes the mod_dptools conference app
+func (c *Conn) Conference(ctx context.Context, uuid, audioArgs string, wait bool) (*RawResponse, error) {
+	return c.executeCommand(ctx, "conference", uuid, audioArgs, wait)
+}
+
 // WaitForDTMF, waits for a DTMF event. Requires events to be enabled!
 func (c *Conn) WaitForDTMF(ctx context.Context, uuid string) (byte, error) {
 	done := make(chan byte, 1)
@@ -130,4 +173,9 @@ func (c *Conn) audioCommand(ctx context.Context, command, uuid, audioArgs string
 		return response, errors.New(command + " response is not okay")
 	}
 	return response, nil
+}
+
+// Helper fuck to execute commands with its args and sync/async mode
+func (c *Conn) executeCommand(ctx context.Context, command, uuid, audioArgs string, wait bool) (*RawResponse, error) {
+	return c.audioCommand(ctx, command, uuid, audioArgs, 0, wait)
 }
