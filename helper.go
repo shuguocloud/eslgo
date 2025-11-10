@@ -112,8 +112,42 @@ func (c *Conn) Hangup(ctx context.Context, uuid, cause string, wait bool) (*RawR
 }
 
 // Answer - Executes the mod_dptools answer app
-func (c *Conn) Answer(ctx context.Context, uuid, audioArgs string, wait bool) (*RawResponse, error) {
-	return c.executeCommand(ctx, "answer", uuid, audioArgs, wait)
+func (c *Conn) Answer(ctx context.Context, uuid string, wait bool) (*RawResponse, error) {
+	return c.executeCommand(ctx, "answer", uuid, "", wait)
+}
+
+// Set - Executes the mod_dptools set app
+func (c *Conn) Set(ctx context.Context, uuid, key, value string, wait bool) (*RawResponse, error) {
+	response, err := c.SendCommand(ctx, &call.Set{
+		UUID:  uuid,
+		Key:   key,
+		Value: value,
+		Sync:  wait,
+	})
+	if err != nil {
+		return response, err
+	}
+	if !response.IsOk() {
+		return response, errors.New("set response is not okay")
+	}
+	return response, nil
+}
+
+// Export - Executes the mod_dptools export app
+func (c *Conn) Export(ctx context.Context, uuid, key, value string, wait bool) (*RawResponse, error) {
+	response, err := c.SendCommand(ctx, &call.Export{
+		UUID:  uuid,
+		Key:   key,
+		Value: value,
+		Sync:  wait,
+	})
+	if err != nil {
+		return response, err
+	}
+	if !response.IsOk() {
+		return response, errors.New("export response is not okay")
+	}
+	return response, nil
 }
 
 // Conference - Executes the mod_dptools conference app
