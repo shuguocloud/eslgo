@@ -159,8 +159,13 @@ func (c *Conn) Linger(ctx context.Context, enabled bool, time time.Duration) (*R
 }
 
 // Conference - Executes the mod_dptools conference app
-func (c *Conn) Conference(ctx context.Context, uuid, audioArgs string, wait bool) (*RawResponse, error) {
-	return c.executeCommand(ctx, "conference", uuid, audioArgs, wait)
+func (c *Conn) Conference(ctx context.Context, uuid, audioArgs string) (*RawResponse, error) {
+	return c.executeCommand(ctx, "conference", uuid, audioArgs, true)
+}
+
+// ConferenceAsync - Executes the mod_dptools conference app with async mode
+func (c *Conn) ConferenceAsync(ctx context.Context, uuid, audioArgs string) (*RawResponse, error) {
+	return c.executeCommand(ctx, "conference", uuid, audioArgs, false)
 }
 
 // WaitForDTMF, waits for a DTMF event. Requires events to be enabled!
