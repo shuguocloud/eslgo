@@ -74,43 +74,43 @@ func (c *Conn) PhraseWithArgAsync(ctx context.Context, uuid, macro string, argum
 }
 
 // Playback - Executes the mod_dptools playback app
-func (c *Conn) Playback(ctx context.Context, uuid, audioArgs string, times int) (*RawResponse, error) {
-	return c.audioCommand(ctx, "playback", uuid, audioArgs, times, true)
+func (c *Conn) Playback(ctx context.Context, uuid, appArgs string, times int) (*RawResponse, error) {
+	return c.audioCommand(ctx, "playback", uuid, appArgs, times, true)
 }
 
 // PlaybackAsync - Executes the mod_dptools playback app with async mode
-func (c *Conn) PlaybackAsync(ctx context.Context, uuid, audioArgs string, times int) (*RawResponse, error) {
-	return c.audioCommand(ctx, "playback", uuid, audioArgs, times, false)
+func (c *Conn) PlaybackAsync(ctx context.Context, uuid, appArgs string, times int) (*RawResponse, error) {
+	return c.audioCommand(ctx, "playback", uuid, appArgs, times, false)
 }
 
 // Say - Executes the mod_dptools say app
-func (c *Conn) Say(ctx context.Context, uuid, audioArgs string, times int) (*RawResponse, error) {
-	return c.audioCommand(ctx, "say", uuid, audioArgs, times, true)
+func (c *Conn) Say(ctx context.Context, uuid, appArgs string, times int) (*RawResponse, error) {
+	return c.audioCommand(ctx, "say", uuid, appArgs, times, true)
 }
 
 // SayAsync - Executes the mod_dptools say app with async mode
-func (c *Conn) SayAsync(ctx context.Context, uuid, audioArgs string, times int) (*RawResponse, error) {
-	return c.audioCommand(ctx, "say", uuid, audioArgs, times, false)
+func (c *Conn) SayAsync(ctx context.Context, uuid, appArgs string, times int) (*RawResponse, error) {
+	return c.audioCommand(ctx, "say", uuid, appArgs, times, false)
 }
 
 // Speak - Executes the mod_dptools speak app
-func (c *Conn) Speak(ctx context.Context, uuid, audioArgs string, times int) (*RawResponse, error) {
-	return c.audioCommand(ctx, "speak", uuid, audioArgs, times, true)
+func (c *Conn) Speak(ctx context.Context, uuid, appArgs string, times int) (*RawResponse, error) {
+	return c.audioCommand(ctx, "speak", uuid, appArgs, times, true)
 }
 
 // SpeakAsync - Executes the mod_dptools speak app with async mode
-func (c *Conn) SpeakAsync(ctx context.Context, uuid, audioArgs string, times int) (*RawResponse, error) {
-	return c.audioCommand(ctx, "speak", uuid, audioArgs, times, false)
+func (c *Conn) SpeakAsync(ctx context.Context, uuid, appArgs string, times int) (*RawResponse, error) {
+	return c.audioCommand(ctx, "speak", uuid, appArgs, times, false)
 }
 
 // Execute - Executes the mod_dptools app
-func (c *Conn) Execute(ctx context.Context, uuid, command, appArgs string) (*RawResponse, error) {
-	return c.executeCommand(ctx, command, uuid, appArgs, true)
+func (c *Conn) Execute(ctx context.Context, uuid, cmd, appArgs string) (*RawResponse, error) {
+	return c.executeCommand(ctx, cmd, uuid, appArgs, true)
 }
 
 // ExecuteAsync - Executes the mod_dptools app with async mode
-func (c *Conn) ExecuteAsync(ctx context.Context, uuid, command, appArgs string) (*RawResponse, error) {
-	return c.executeCommand(ctx, command, uuid, appArgs, false)
+func (c *Conn) ExecuteAsync(ctx context.Context, uuid, cmd, appArgs string) (*RawResponse, error) {
+	return c.executeCommand(ctx, cmd, uuid, appArgs, false)
 }
 
 // Hangup - Executes the mod_dptools hangup app
@@ -159,13 +159,13 @@ func (c *Conn) Linger(ctx context.Context, enabled bool, time time.Duration) (*R
 }
 
 // Conference - Executes the mod_dptools conference app
-func (c *Conn) Conference(ctx context.Context, uuid, audioArgs string) (*RawResponse, error) {
-	return c.executeCommand(ctx, "conference", uuid, audioArgs, true)
+func (c *Conn) Conference(ctx context.Context, uuid, appArgs string) (*RawResponse, error) {
+	return c.executeCommand(ctx, "conference", uuid, appArgs, true)
 }
 
 // ConferenceAsync - Executes the mod_dptools conference app with async mode
-func (c *Conn) ConferenceAsync(ctx context.Context, uuid, audioArgs string) (*RawResponse, error) {
-	return c.executeCommand(ctx, "conference", uuid, audioArgs, false)
+func (c *Conn) ConferenceAsync(ctx context.Context, uuid, appArgs string) (*RawResponse, error) {
+	return c.executeCommand(ctx, "conference", uuid, appArgs, false)
 }
 
 // WaitForDTMF, waits for a DTMF event. Requires events to be enabled!
@@ -205,11 +205,11 @@ func (c *Conn) WaitForDTMF(ctx context.Context, uuid string) (byte, error) {
 }
 
 // Helper for mod_dptools apps since they are very similar in invocation
-func (c *Conn) audioCommand(ctx context.Context, command, uuid, audioArgs string, times int, wait bool) (*RawResponse, error) {
+func (c *Conn) audioCommand(ctx context.Context, cmd, uuid, appArgs string, times int, wait bool) (*RawResponse, error) {
 	response, err := c.SendCommand(ctx, &call.Execute{
 		UUID:    uuid,
-		AppName: command,
-		AppArgs: audioArgs,
+		AppName: cmd,
+		AppArgs: appArgs,
 		Loops:   times,
 		Sync:    wait,
 	})
@@ -217,14 +217,14 @@ func (c *Conn) audioCommand(ctx context.Context, command, uuid, audioArgs string
 		return response, err
 	}
 	if !response.IsOk() {
-		return response, errors.New(command + " response is not okay")
+		return response, errors.New(cmd + " response is not okay")
 	}
 	return response, nil
 }
 
 // Helper fuck to execute commands with its args and sync/async mode
-func (c *Conn) executeCommand(ctx context.Context, command, uuid, audioArgs string, wait bool) (*RawResponse, error) {
-	return c.audioCommand(ctx, command, uuid, audioArgs, 0, wait)
+func (c *Conn) executeCommand(ctx context.Context, cmd, uuid, appArgs string, wait bool) (*RawResponse, error) {
+	return c.audioCommand(ctx, cmd, uuid, appArgs, 0, wait)
 }
 
 // Helper fuck to set commands with its args and sync/async mode
@@ -255,6 +255,63 @@ func (c *Conn) hangupCommand(ctx context.Context, uuid, cause string, wait bool)
 	}
 	if !response.IsOk() {
 		return response, errors.New("set response is not okay")
+	}
+	return response, nil
+}
+
+// Api - Helper designed to attach api in front of the command so that you do not need to write it
+func (c *Conn) Api(ctx context.Context, cmd, apiArgs string) (*RawResponse, error) {
+	response, err := c.SendCommand(ctx, command.API{
+		Command:    cmd,
+		Arguments:  apiArgs,
+		Background: false,
+	})
+	if err != nil {
+		return response, err
+	}
+	if !response.IsOk() {
+		return response, errors.New("api response is not okay")
+	}
+	return response, nil
+}
+
+// BgApi - Helper designed to attach api in front of the command so that you do not need to write it
+func (c *Conn) BgApi(ctx context.Context, cmd, apiArgs string) (*RawResponse, error) {
+	response, err := c.SendCommand(ctx, command.API{
+		Command:    cmd,
+		Arguments:  apiArgs,
+		Background: true,
+	})
+	if err != nil {
+		return response, err
+	}
+	if !response.IsOk() {
+		return response, errors.New("bgapi response is not okay")
+	}
+	return response, nil
+}
+
+// Connect - Helper designed to help you handle connection. Each outbound server when handling needs to connect e.g. accept
+// connection in order for you to do answer, hangup or do whatever else you wish to do
+func (c *Conn) Connect(ctx context.Context) (*RawResponse, error) {
+	response, err := c.SendCommand(ctx, command.Connect{})
+	if err != nil {
+		return response, err
+	}
+	if !response.IsOk() {
+		return response, errors.New("connect response is not okay")
+	}
+	return response, nil
+}
+
+// Exit - Used to send exit signal to ESL. It will basically hangup call and close connection
+func (c *Conn) Exit(ctx context.Context) (*RawResponse, error) {
+	response, err := c.SendCommand(ctx, command.Exit{})
+	if err != nil {
+		return response, err
+	}
+	if !response.IsOk() {
+		return response, errors.New("exit response is not okay")
 	}
 	return response, nil
 }
