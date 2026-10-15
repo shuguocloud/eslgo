@@ -59,6 +59,10 @@ var DefaultOptions = Options{
 const EndOfMessage = "\r\n\r\n"
 
 func newConnection(c net.Conn, outbound bool, opts Options) *Conn {
+	if tcpConn, ok := c.(*net.TCPConn); ok {
+		_ = tcpConn.SetKeepAlive(true)
+		_ = tcpConn.SetKeepAlivePeriod(30 * time.Second)
+	}
 	reader := bufio.NewReader(c)
 	header := textproto.NewReader(reader)
 
@@ -247,6 +251,7 @@ func (c *Conn) eventLoop() {
 	defer func() {
 		if r := recover(); r != nil {
 			c.logger.Warn("panic in eventLoop: %v", r)
+			c.Close()
 		}
 	}()
 	for {
@@ -294,6 +299,7 @@ func (c *Conn) receiveLoop() {
 	defer func() {
 		if r := recover(); r != nil {
 			c.logger.Warn("panic in receiveLoop: %v", r)
+			c.Close()
 		}
 	}()
 	for c.runningContext.Err() == nil {

@@ -52,6 +52,7 @@ func (opts OutboundOptions) ListenAndServe(address string, handler OutboundHandl
 	if err != nil {
 		return err
 	}
+	defer listener.Close()
 	if opts.Logger != nil {
 		opts.Logger.Info("Listening for new ESL connections on %s\n", listener.Addr().String())
 	}
@@ -75,6 +76,7 @@ func (opts OutboundOptions) ListenAndServe(address string, handler OutboundHandl
 }
 
 func (c *Conn) outboundHandle(handler OutboundHandler, connectionDelay, connectTimeout time.Duration) {
+	defer c.Close()
 	defer func() {
 		if r := recover(); r != nil {
 			c.logger.Warn("panic in outboundHandle: %v", r)
@@ -102,6 +104,7 @@ func (c *Conn) dummyLoop() {
 	defer func() {
 		if r := recover(); r != nil {
 			c.logger.Warn("panic in dummyLoop: %v", r)
+			c.Close()
 		}
 	}()
 	select {
