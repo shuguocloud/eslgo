@@ -107,16 +107,21 @@ func (c *Conn) dummyLoop() {
 			c.Close()
 		}
 	}()
+	// 先在读锁内取出 channel，避免与 close() 的 delete 并发读写 map（concurrent map access 是 fatal，不可 recover）
+	c.responseChanMutex.RLock()
+	disconnectChan := c.responseChannels[TypeDisconnect]
+	authRequestChan := c.responseChannels[TypeAuthRequest]
+	c.responseChanMutex.RUnlock()
 	select {
-	case <-c.responseChannels[TypeDisconnect]:
-		c.logger.Info("Disconnect outbound connection", c.conn.RemoteAddr())
+	case <-disconnectChan:
+		c.logger.Info("Disconnect outbound connection %s", c.conn.RemoteAddr())
 		if c.closeDelay >= 0 {
 			time.AfterFunc(c.closeDelay*time.Second, func() {
 				c.Close()
 			})
 		}
-	case <-c.responseChannels[TypeAuthRequest]:
-		c.logger.Debug("Ignoring auth request on outbound connection", c.conn.RemoteAddr())
+	case <-authRequestChan:
+		c.logger.Debug("Ignoring auth request on outbound connection %s", c.conn.RemoteAddr())
 	case <-c.runningContext.Done():
 		return
 	}
