@@ -46,14 +46,21 @@ func Dial(address, password string, onDisconnect func()) (*Conn, error) {
 
 // Dial - Connects to FreeSWITCH ESL on the address with the provided options. Returns the connection and any errors encountered
 func (opts InboundOptions) Dial(address string) (*Conn, error) {
-	c, err := net.Dial(opts.Network, address)
+	// 建立 TCP 连接加超时，避免对端不可达时 Dial 长时间阻塞导致重连 goroutine 挂起
+	dialer := net.Dialer{Timeout: opts.AuthTimeout}
+	c, err := dialer.Dial(opts.Network, address)
 	if err != nil {
 		return nil, err
 	}
 	connection := newConnection(c, false, opts.Options)
 
-	// First auth
-	<-connection.responseChannels[TypeAuthRequest]
+	// First auth：等待 auth/request 加超时兜底，避免对端半开/卡死时永久阻塞（reconnectFlag 无法复位）
+	select {
+	case <-connection.responseChannels[TypeAuthRequest]:
+	case <-time.After(opts.AuthTimeout):
+		connection.ExitAndClose()
+		return nil, fmt.Errorf("timeout waiting for auth/request from %s", address)
+	}
 	authCtx, cancel := context.WithTimeout(connection.runningContext, opts.AuthTimeout)
 	err = connection.doAuth(authCtx, command.Auth{Password: opts.Password})
 	cancel()
