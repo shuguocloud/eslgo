@@ -75,6 +75,11 @@ func (opts OutboundOptions) ListenAndServe(address string, handler OutboundHandl
 }
 
 func (c *Conn) outboundHandle(handler OutboundHandler, connectionDelay, connectTimeout time.Duration) {
+	defer func() {
+		if r := recover(); r != nil {
+			c.logger.Warn("panic in outboundHandle: %v", r)
+		}
+	}()
 	ctx, cancel := context.WithTimeout(c.runningContext, connectTimeout)
 	response, err := c.SendCommand(ctx, command.Connect{})
 	cancel()
@@ -94,6 +99,11 @@ func (c *Conn) outboundHandle(handler OutboundHandler, connectionDelay, connectT
 }
 
 func (c *Conn) dummyLoop() {
+	defer func() {
+		if r := recover(); r != nil {
+			c.logger.Warn("panic in dummyLoop: %v", r)
+		}
+	}()
 	select {
 	case <-c.responseChannels[TypeDisconnect]:
 		c.logger.Info("Disconnect outbound connection", c.conn.RemoteAddr())

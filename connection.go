@@ -244,6 +244,11 @@ func (c *Conn) callEventListener(event *Event) {
 }
 
 func (c *Conn) eventLoop() {
+	defer func() {
+		if r := recover(); r != nil {
+			c.logger.Warn("panic in eventLoop: %v", r)
+		}
+	}()
 	for {
 		var event *Event
 		var err error
@@ -286,6 +291,11 @@ func (c *Conn) eventLoop() {
 }
 
 func (c *Conn) receiveLoop() {
+	defer func() {
+		if r := recover(); r != nil {
+			c.logger.Warn("panic in receiveLoop: %v", r)
+		}
+	}()
 	for c.runningContext.Err() == nil {
 		err := c.doMessage()
 		if err != nil {
