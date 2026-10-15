@@ -120,7 +120,7 @@ func (c *Conn) authLoop(auth command.Auth, authTimeout time.Duration) {
 			err := c.doAuth(authCtx, auth)
 			cancel()
 			if err != nil {
-				c.logger.Warn("Failed to auth %e\n", err)
+				c.logger.Warn("Failed to auth %s\n", err.Error())
 				// Close the connection, we have the wrong password
 				c.ExitAndClose()
 				return
