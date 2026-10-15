@@ -11,12 +11,12 @@
 package eslgo
 
 import (
-    "context"
-    "fmt"
-    "net"
-    "time"
+	"context"
+	"fmt"
+	"net"
+	"time"
 
-    "github.com/shuguocloud/eslgo/command"
+	"github.com/shuguocloud/eslgo/command"
 )
 
 // InboundOptions - Used to dial a new inbound ESL connection to FreeSWITCH
@@ -61,7 +61,14 @@ func (opts InboundOptions) Dial(address string) (*Conn, error) {
 		// Try to gracefully disconnect, we have the wrong password.
 		connection.ExitAndClose()
 		if opts.OnDisconnect != nil {
-			go opts.OnDisconnect()
+			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						connection.logger.Warn("panic in onDisconnect: %v", r)
+					}
+				}()
+				opts.OnDisconnect()
+			}()
 		}
 		return nil, err
 	} else {
@@ -76,6 +83,11 @@ func (opts InboundOptions) Dial(address string) (*Conn, error) {
 }
 
 func (c *Conn) disconnectLoop(onDisconnect func()) {
+	defer func() {
+		if r := recover(); r != nil {
+			c.logger.Warn("panic in disconnectLoop: %v", r)
+		}
+	}()
 	select {
 	case <-c.responseChannels[TypeDisconnect]:
 		c.Close()
@@ -89,6 +101,11 @@ func (c *Conn) disconnectLoop(onDisconnect func()) {
 }
 
 func (c *Conn) authLoop(auth command.Auth, authTimeout time.Duration) {
+	defer func() {
+		if r := recover(); r != nil {
+			c.logger.Warn("panic in authLoop: %v", r)
+		}
+	}()
 	for {
 		select {
 		case <-c.responseChannels[TypeAuthRequest]:

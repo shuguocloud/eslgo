@@ -317,7 +317,19 @@ func (c *Conn) receiveLoop() {
 				}
 				return
 			}
-			break
+			// 非 EOF 错误（如 connection reset）也发送 TypeDisconnect 信号，避免 outboundHandle 永久阻塞
+			c.logger.Warn("Connection error (non-EOF), sending disconnect signal: %s\n", err.Error())
+			select {
+			case c.responseChannels[TypeDisconnect] <- &RawResponse{
+				Headers: textproto.MIMEHeader{
+					"Content-Type": []string{TypeDisconnect},
+					"Error":        []string{err.Error()},
+				},
+				Body: []byte("connection error: " + err.Error()),
+			}:
+			default:
+			}
+			return
 		}
 	}
 }
