@@ -9,4 +9,11 @@
 3. eslgo/inbound.go: authLoop、disconnectLoop 加 defer recover()；Dial 中 onDisconnect 回调 goroutine 加 recover 包裹；
 4. eslgo/inbound.go: Dial 建立 TCP 连接与等待 auth/request 均加 AuthTimeout(5s) 超时，避免对端半开/卡死时重连 goroutine 永久阻塞且 reconnectFlag 无法复位（进程活着但永远失联）；
 
+【20261018】
 
+1. eslgo/connection.go（receiveLoop + 新增 notifyDisconnect） | receiveLoop EOF/非 EOF 后无锁读 map 发断开信号，与 close() 持锁写 map 竞态 → runtime fatal（本次崩溃主因） | TypeDisconnect channel 加 1 缓冲；新增 `notifyDisconnect()`：读锁内原子完成"map 存在性检查 + 非阻塞发送"，两处发送点改走该方法 |
+2. eslgo/inbound.go（disconnectLoop/authLoop） | 直接 select 读 responseChannels map，与 close() 并发构成 concurrent map read/write（本次崩溃的 disconnectLoop 即此路径；authLoop 同类隐患） | 读锁内快照 channel 后再 select；close() 必先 stopFunc 取消 runningContext，nil 快照由 Done 分支兜底 |
+3. eslgo/outbound.go（dummyLoop） | 同 R3-02（R2-02 补丁曾修但已随 vendor 回退丢失） | 重新应用：读锁内快照两 channel 后再 select |
+4. eslgo/connection.go、outbound.go（R2-03 补回） | receiveLoop/eventLoop/dummyLoop recover 后不释放连接 → handler 永久阻塞泄漏 FD；outboundHandle 不保证释放；ListenAndServe 退出后旧 listener FD 残留 | 三处 recover 分支补 `c.Close()`；outboundHandle 加 `defer c.Close()`；ListenAndServe 加 `defer listener.Close()` |
+5. eslgo/connection.go（newConnection，R2-04 补回） | ESL TCP 未启用 keepalive，半开连接缓慢堆积 | 对 *net.TCPConn 启用 keepalive(30s) |
+6. eslgo/outbound.go、inbound.go（R2-11/13 补回） | dummyLoop 两处日志缺 %s（%!(EXTRA *net.TCPAddr)）；authLoop "Failed to auth %e" 动词误用 | 补 %s；%e 改 %s + err.Error() |

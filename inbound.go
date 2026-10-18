@@ -95,8 +95,15 @@ func (c *Conn) disconnectLoop(onDisconnect func()) {
 			c.logger.Warn("panic in disconnectLoop: %v", r)
 		}
 	}()
+	// Snapshot the channels under the read-lock: raw map access here would race
+	// with close() mutating responseChannels (concurrent map read and map write).
+	// If close() already ran, the snapshot is nil and runningContext (cancelled
+	// by close()'s stopFunc) terminates the select below.
+	c.responseChanMutex.RLock()
+	disconnectChan := c.responseChannels[TypeDisconnect]
+	c.responseChanMutex.RUnlock()
 	select {
-	case <-c.responseChannels[TypeDisconnect]:
+	case <-disconnectChan:
 		c.Close()
 		if onDisconnect != nil {
 			onDisconnect()
@@ -114,8 +121,12 @@ func (c *Conn) authLoop(auth command.Auth, authTimeout time.Duration) {
 		}
 	}()
 	for {
+		// Snapshot under the read-lock, same race protection as disconnectLoop
+		c.responseChanMutex.RLock()
+		authRequestChan := c.responseChannels[TypeAuthRequest]
+		c.responseChanMutex.RUnlock()
 		select {
-		case <-c.responseChannels[TypeAuthRequest]:
+		case <-authRequestChan:
 			authCtx, cancel := context.WithTimeout(c.runningContext, authTimeout)
 			err := c.doAuth(authCtx, auth)
 			cancel()

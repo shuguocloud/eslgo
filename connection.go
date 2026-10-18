@@ -59,10 +59,12 @@ var DefaultOptions = Options{
 const EndOfMessage = "\r\n\r\n"
 
 func newConnection(c net.Conn, outbound bool, opts Options) *Conn {
+	// Enable TCP keepalive to detect half-open connections early (NAT/firewall idle timeouts)
 	if tcpConn, ok := c.(*net.TCPConn); ok {
 		_ = tcpConn.SetKeepAlive(true)
 		_ = tcpConn.SetKeepAlivePeriod(30 * time.Second)
 	}
+
 	reader := bufio.NewReader(c)
 	header := textproto.NewReader(reader)
 
@@ -84,7 +86,7 @@ func newConnection(c net.Conn, outbound bool, opts Options) *Conn {
 			TypeEventXML:    make(chan *RawResponse),
 			TypeEventJSON:   make(chan *RawResponse),
 			TypeAuthRequest: make(chan *RawResponse, 1), // Buffered to ensure we do not lose the initial auth request before we are setup to respond
-			TypeDisconnect:  make(chan *RawResponse),
+			TypeDisconnect:  make(chan *RawResponse, 1), // Buffered to ensure we do not lose the disconnect signal when the disconnect loop is busy
 		},
 		runningContext: runningContext,
 		stopFunc:       stop,
@@ -205,6 +207,31 @@ func (c *Conn) close() {
 	_ = c.conn.Close()
 }
 
+// notifyDisconnect - Atomically deliver a disconnect notification to the TypeDisconnect channel.
+// The map existence check and the non-blocking send are both performed under responseChanMutex,
+// so this can never race with close() mutating responseChannels (concurrent map read/write)
+// nor send on a closed channel (close() holds the write lock while closing channels).
+func (c *Conn) notifyDisconnect(reason string) {
+	c.responseChanMutex.RLock()
+	defer c.responseChanMutex.RUnlock()
+	responseChan, ok := c.responseChannels[TypeDisconnect]
+	if !ok {
+		// Connection already fully closed, no one left to notify
+		return
+	}
+	select {
+	case responseChan <- &RawResponse{
+		Headers: textproto.MIMEHeader{
+			"Content-Type": []string{TypeDisconnect},
+			"Error":        []string{reason},
+		},
+		Body: []byte("connection closed: " + reason),
+	}:
+	default:
+		// Receiver not ready and buffer full: the connection is being torn down anyway, drop the signal
+	}
+}
+
 func (c *Conn) callEventListener(event *Event) {
 	c.eventListenerLock.RLock()
 	defer c.eventListenerLock.RUnlock()
@@ -251,6 +278,7 @@ func (c *Conn) eventLoop() {
 	defer func() {
 		if r := recover(); r != nil {
 			c.logger.Warn("panic in eventLoop: %v", r)
+			// Release the connection so handlers waiting on it unblock instead of leaking goroutines/FDs
 			c.Close()
 		}
 	}()
@@ -299,6 +327,7 @@ func (c *Conn) receiveLoop() {
 	defer func() {
 		if r := recover(); r != nil {
 			c.logger.Warn("panic in receiveLoop: %v", r)
+			// Release the connection so handlers waiting on it unblock instead of leaking goroutines/FDs
 			c.Close()
 		}
 	}()
@@ -311,35 +340,14 @@ func (c *Conn) receiveLoop() {
 			if err.Error() == "EOF" {
 				// send signal to c.responseChannels[TypeDisconnect]
 				c.logger.Warn("Connection closed, stopping receive loop\n")
-				c.notifyDisconnect("connection closed: " + err.Error())
+				c.notifyDisconnect(err.Error())
 				return
 			}
 			// 非 EOF 错误（如 connection reset）也发送 TypeDisconnect 信号，避免 outboundHandle 永久阻塞
 			c.logger.Warn("Connection error (non-EOF), sending disconnect signal: %s\n", err.Error())
-			c.notifyDisconnect("connection error: " + err.Error())
+			c.notifyDisconnect(err.Error())
 			return
 		}
-	}
-}
-
-// notifyDisconnect 安全地向 TypeDisconnect channel 投递断开信号。
-// close() 会在同一写锁内 close+delete 所有 channel，因此此处必须持读锁并检查存在性，
-// 否则向已关闭 channel 发送会 panic: send on closed channel（曾导致整进程崩溃且业务日志无记录）。
-func (c *Conn) notifyDisconnect(body string) {
-	c.responseChanMutex.RLock()
-	defer c.responseChanMutex.RUnlock()
-	responseChan, ok := c.responseChannels[TypeDisconnect]
-	if !ok {
-		return
-	}
-	select {
-	case responseChan <- &RawResponse{
-		Headers: textproto.MIMEHeader{
-			"Content-Type": []string{TypeDisconnect},
-		},
-		Body: []byte(body),
-	}:
-	default:
 	}
 }
 

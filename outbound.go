@@ -52,10 +52,11 @@ func (opts OutboundOptions) ListenAndServe(address string, handler OutboundHandl
 	if err != nil {
 		return err
 	}
-	defer listener.Close()
 	if opts.Logger != nil {
 		opts.Logger.Info("Listening for new ESL connections on %s\n", listener.Addr().String())
 	}
+	// Release the listener FD when ListenAndServe exits so a restarted listener never conflicts with a stale one
+	defer listener.Close()
 	for {
 		c, err := listener.Accept()
 		if err != nil {
@@ -76,12 +77,13 @@ func (opts OutboundOptions) ListenAndServe(address string, handler OutboundHandl
 }
 
 func (c *Conn) outboundHandle(handler OutboundHandler, connectionDelay, connectTimeout time.Duration) {
-	defer c.Close()
 	defer func() {
 		if r := recover(); r != nil {
 			c.logger.Warn("panic in outboundHandle: %v", r)
 		}
 	}()
+	// Always release the connection when the handler finishes (normally or via panic)
+	defer c.Close()
 	ctx, cancel := context.WithTimeout(c.runningContext, connectTimeout)
 	response, err := c.SendCommand(ctx, command.Connect{})
 	cancel()
@@ -104,24 +106,26 @@ func (c *Conn) dummyLoop() {
 	defer func() {
 		if r := recover(); r != nil {
 			c.logger.Warn("panic in dummyLoop: %v", r)
+			// Release the connection so pending handlers unblock instead of leaking goroutines/FDs
 			c.Close()
 		}
 	}()
-	// 先在读锁内取出 channel，避免与 close() 的 delete 并发读写 map（concurrent map access 是 fatal，不可 recover）
+	// Snapshot the channels under the read-lock: raw map access here would race
+	// with close() mutating responseChannels (concurrent map read and map write).
 	c.responseChanMutex.RLock()
 	disconnectChan := c.responseChannels[TypeDisconnect]
 	authRequestChan := c.responseChannels[TypeAuthRequest]
 	c.responseChanMutex.RUnlock()
 	select {
 	case <-disconnectChan:
-		c.logger.Info("Disconnect outbound connection %s", c.conn.RemoteAddr())
+		c.logger.Info("Disconnect outbound connection %s\n", c.conn.RemoteAddr())
 		if c.closeDelay >= 0 {
 			time.AfterFunc(c.closeDelay*time.Second, func() {
 				c.Close()
 			})
 		}
 	case <-authRequestChan:
-		c.logger.Debug("Ignoring auth request on outbound connection %s", c.conn.RemoteAddr())
+		c.logger.Debug("Ignoring auth request on outbound connection %s\n", c.conn.RemoteAddr())
 	case <-c.runningContext.Done():
 		return
 	}
