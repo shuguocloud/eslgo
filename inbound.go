@@ -110,6 +110,15 @@ func (c *Conn) disconnectLoop(onDisconnect func()) {
 		}
 		return
 	case <-c.runningContext.Done():
+		// Connection was closed by another path (panic-recovery Close, ExitAndClose
+		// after authLoop failure, ...). close() cancels runningContext before closing
+		// the disconnect channel, so this branch can win the select race; it must
+		// still notify the caller or an inbound connection would never reconnect.
+		// Callers must make onDisconnect idempotent (fsctl uses a CAS-guarded
+		// triggerReconnect, so duplicate notification is harmless).
+		if onDisconnect != nil {
+			onDisconnect()
+		}
 		return
 	}
 }

@@ -2,7 +2,6 @@
 
 1. Initialize ESL for our code.
 
-【20261015】
 
 1. eslgo/outbound.go: outboundHandle、dummyLoop 加 defer recover()，防止内部 panic 杀进程；
 2. eslgo/connection.go: receiveLoop、eventLoop 加 defer recover()；receiveLoop 非 EOF 错误（如 connection reset）也发送 TypeDisconnect 信号，避免 outboundHandle 永久阻塞导致 FD 泄漏；
@@ -17,3 +16,8 @@
 4. eslgo/connection.go、outbound.go（R2-03 补回） | receiveLoop/eventLoop/dummyLoop recover 后不释放连接 → handler 永久阻塞泄漏 FD；outboundHandle 不保证释放；ListenAndServe 退出后旧 listener FD 残留 | 三处 recover 分支补 `c.Close()`；outboundHandle 加 `defer c.Close()`；ListenAndServe 加 `defer listener.Close()` |
 5. eslgo/connection.go（newConnection，R2-04 补回） | ESL TCP 未启用 keepalive，半开连接缓慢堆积 | 对 *net.TCPConn 启用 keepalive(30s) |
 6. eslgo/outbound.go、inbound.go（R2-11/13 补回） | dummyLoop 两处日志缺 %s（%!(EXTRA *net.TCPAddr)）；authLoop "Failed to auth %e" 动词误用 | 补 %s；%e 改 %s + err.Error() |
+
+【20261019】
+
+1. inbound 侧重连逻辑完整性检查，修复 3 个缺口（仅影响 xswitch_in）：
+   - GAP-1（vendor eslgo inbound.go disconnectLoop）：close() 先 stopFunc 取消 runningContext、再关 responseChannels，因此任何非 disconnectLoop 路径触发的 Close()（receiveLoop/eventLoop recover 后 Close、authLoop 失败 ExitAndClose）都有概率让 disconnectLoop 走 Done 分支直接 return、丢失 onDisconnect 回调——进程活着但 ESL 永久断连不重连。修复：Done 分支同样调用 onDisconnect（调用方 triggerReconnect 有 CAS 幂等，重复通知无害）；
