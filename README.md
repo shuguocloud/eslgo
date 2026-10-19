@@ -43,7 +43,7 @@ import (
 
 func main() {
 	// Start listening, this is a blocking function
-	log.Fatalln(eslgo.ListenAndServe(":8084", handleConnection))
+	log.Fatalln(eslgo.ListenAndServe(":18084", handleConnection))
 }
 
 func handleConnection(ctx context.Context, conn *eslgo.Conn, response *eslgo.RawResponse) {
@@ -67,7 +67,7 @@ import (
 
 func main() {
 	// Connect to FreeSWITCH
-	conn, err := eslgo.Dial("127.0.0.1:8021", "ClueCon", func() {
+	conn, err := eslgo.Dial("127.0.0.1:18021", "ClueCon", func() {
 		fmt.Println("Inbound Connection Disconnected")
 	})
 	if err != nil {
