@@ -55,8 +55,12 @@ func (opts InboundOptions) Dial(address string) (*Conn, error) {
 	connection := newConnection(c, false, opts.Options)
 
 	// First auth：等待 auth/request 加超时兜底，避免对端半开/卡死时永久阻塞（reconnectFlag 无法复位）
+	// 快照 channel 到局部变量后再 select，避免与 close() 并发读写 responseChannels map
+	// （concurrent map read and map write 是 fatal error，recover 无法捕获）。
+	// 若 close() 已执行，快照为 nil，由 time.After 超时分支兜底（ExitAndClose 幂等）。
+	authRequestChan := connection.snapshotResponseChan(TypeAuthRequest)
 	select {
-	case <-connection.responseChannels[TypeAuthRequest]:
+	case <-authRequestChan:
 	case <-time.After(opts.AuthTimeout):
 		connection.ExitAndClose()
 		return nil, fmt.Errorf("timeout waiting for auth/request from %s", address)
@@ -99,9 +103,7 @@ func (c *Conn) disconnectLoop(onDisconnect func()) {
 	// with close() mutating responseChannels (concurrent map read and map write).
 	// If close() already ran, the snapshot is nil and runningContext (cancelled
 	// by close()'s stopFunc) terminates the select below.
-	c.responseChanMutex.RLock()
-	disconnectChan := c.responseChannels[TypeDisconnect]
-	c.responseChanMutex.RUnlock()
+	disconnectChan := c.snapshotResponseChan(TypeDisconnect)
 	select {
 	case <-disconnectChan:
 		c.Close()
@@ -131,9 +133,7 @@ func (c *Conn) authLoop(auth command.Auth, authTimeout time.Duration) {
 	}()
 	for {
 		// Snapshot under the read-lock, same race protection as disconnectLoop
-		c.responseChanMutex.RLock()
-		authRequestChan := c.responseChannels[TypeAuthRequest]
-		c.responseChanMutex.RUnlock()
+		authRequestChan := c.snapshotResponseChan(TypeAuthRequest)
 		select {
 		case <-authRequestChan:
 			authCtx, cancel := context.WithTimeout(c.runningContext, authTimeout)

@@ -17,6 +17,13 @@
 5. eslgo/connection.go（newConnection，R2-04 补回） | ESL TCP 未启用 keepalive，半开连接缓慢堆积 | 对 *net.TCPConn 启用 keepalive(30s) |
 6. eslgo/outbound.go、inbound.go（R2-11/13 补回） | dummyLoop 两处日志缺 %s（%!(EXTRA *net.TCPAddr)）；authLoop "Failed to auth %e" 动词误用 | 补 %s；%e 改 %s + err.Error() |
 
+【20261108】
+
+1. eslgo/inbound.go（Dial） | Dial 首段 auth 等待直接 select 读 responseChannels[TypeAuthRequest]，与 receiveLoop/eventLoop panic recover→Close()→close() 持锁写 map 竞态 → concurrent map read and map write fatal error（recover 不可捕获，进程直接崩溃）。disconnectLoop/authLoop 同类问题已于 20261018 修复，Dial 路径遗漏 | 新增 connection.go snapshotResponseChan() 读锁内快照方法，Dial/disconnectLoop/authLoop 三处快照统一改走该方法；close() 已执行时快照为 nil，Dial 由 time.After 超时分支兜底（ExitAndClose 幂等） |
+2. eslgo/inbound_test.go（TEST-CONCURRENT-MAP-01） | 为上述修复补充 10 个单元测试：快照语义（close 前非 nil / 后 nil）、快照与 Close 并发竞态回归（-race 可确定性复现旧 bug）、Dial 连接被拒/auth 超时/对端立即断开/认证成功/认证失败回调/回调 panic recover、disconnectLoop 两分支（notifyDisconnect 通知 / Close 兜底） | 全部 PASS；snapshotResponseChan 100%、InboundOptions.Dial 100%、disconnectLoop 91.7%；注：本机 Windows 缺 race detector 运行时（0xc0000139），-race 请在 Linux/CI 执行 |
+3. eslgo/outbound.go（dummyLoop） | dummyLoop 双 channel 快照由 inline 读写锁收敛为复用 snapshotResponseChan()（与 Dial/disconnectLoop/authLoop 一致），行为不变 |
+4. eslgo/inbound_test.go + outbound_test.go（TEST-CONCURRENT-MAP-02） | 追加 4 个用例：TestAuthLoopReauth（authLoop 重认证全流程，net.Pipe 模拟 FS 侧应答）、TestDummyLoopOnDisconnect（disconnect 通知→closeDelay 延迟关闭，轮询快照为 nil 判定 Close 已执行）、TestDummyLoopIgnoresAuthRequest（outbound 忽略 auth/request 且不关连接）、TestDummyLoopSnapshotRaceWithClose（双 channel 快照×Close 竞态回归） | 14 用例全部 PASS；authLoop 86.7%、doAuth 100%、dummyLoop 76.9% |
+
 【20261019】
 
 1. inbound 侧重连逻辑完整性检查，修复 3 个缺口（仅影响 xswitch_in）：

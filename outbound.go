@@ -112,10 +112,8 @@ func (c *Conn) dummyLoop() {
 	}()
 	// Snapshot the channels under the read-lock: raw map access here would race
 	// with close() mutating responseChannels (concurrent map read and map write).
-	c.responseChanMutex.RLock()
-	disconnectChan := c.responseChannels[TypeDisconnect]
-	authRequestChan := c.responseChannels[TypeAuthRequest]
-	c.responseChanMutex.RUnlock()
+	disconnectChan := c.snapshotResponseChan(TypeDisconnect)
+	authRequestChan := c.snapshotResponseChan(TypeAuthRequest)
 	select {
 	case <-disconnectChan:
 		c.logger.Info("Disconnect outbound connection %s\n", c.conn.RemoteAddr())

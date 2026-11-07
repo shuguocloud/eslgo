@@ -207,6 +207,18 @@ func (c *Conn) close() {
 	_ = c.conn.Close()
 }
 
+// snapshotResponseChan - Read the response channel for typ under the read lock.
+// Any goroutine waiting on a response channel MUST take a snapshot via this method
+// instead of indexing responseChannels directly: close() closes and deletes every
+// entry under the write lock, so an unsynchronized read is a concurrent map
+// read/write (runtime fatal error, cannot be recovered). A nil snapshot means
+// close() already ran; callers must fall back to runningContext or a timeout.
+func (c *Conn) snapshotResponseChan(typ string) chan *RawResponse {
+	c.responseChanMutex.RLock()
+	defer c.responseChanMutex.RUnlock()
+	return c.responseChannels[typ]
+}
+
 // notifyDisconnect - Atomically deliver a disconnect notification to the TypeDisconnect channel.
 // The map existence check and the non-blocking send are both performed under responseChanMutex,
 // so this can never race with close() mutating responseChannels (concurrent map read/write)
